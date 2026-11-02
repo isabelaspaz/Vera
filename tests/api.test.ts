@@ -2,11 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../apps/api/src/app';
 import { createGemini, ProviderError, type AiProvider } from '../apps/api/src/services/gemini/provider';
 import { validateNova } from '../apps/api/src/services/nova/validate';
-import { classifyNova, demoLabels, fixture, type NovaAssessment } from '@vera/shared';
+import { classifyNova, type NovaAssessment } from '@vera/shared';
+import { sampleLabels as demoLabels, fixture } from './fixtures/labels';
 const sdkGenerate = vi.hoisted(() => vi.fn());
 vi.mock('@google/genai', () => ({ GoogleGenAI: class { models = { generateContent: sdkGenerate }; }, ThinkingLevel: { MINIMAL: 'MINIMAL', LOW: 'LOW' } }));
 const jpeg = { mimeType: 'image/jpeg' as const, data: Buffer.from([255, 216, 255, 224, 0, 16, 74, 70, 73, 70, 0, 0, 255, 217]).toString('base64') };
 const provider = (): AiProvider => ({ extract: vi.fn(async () => demoLabels[3]!), classify: vi.fn(async label => classifyNova(label)) });
+const extractionOutput = (label = demoLabels[3]!) => ({ productName: label.productName, ingredientsRaw: label.ingredientsRaw, ingredientsStatus: label.fieldCompleteness.ingredientsRaw, warnings: label.extractionWarnings });
 const apps: Awaited<ReturnType<typeof buildApp>>[] = [];
 async function app(p?: AiProvider, rateMax?: number) { const result = await buildApp({ provider: p, rateMax }); apps.push(result); return result; }
 afterEach(async () => { await Promise.all(apps.splice(0).map(a => a.close())); vi.clearAllMocks(); });
@@ -14,6 +16,13 @@ describe('fluxo foto → IA → classificação', () => {
   it('health e catálogo funcionam sem chave', async () => {
     const api = await app(); expect((await api.inject('/health')).json()).toEqual({ status: 'ok', aiConfigured: false, mode: 'real' });
     expect((await api.inject('/api/nova-groups')).json()).toHaveLength(5);
+  });
+  it('diagnóstico opt-in registra apenas metadados, sem imagem ou ingredientes', async () => {
+    const events: unknown[] = [];
+    const api = await buildApp({ provider: provider(), onNetworkEvent: event => events.push(event) }); apps.push(api);
+    await api.inject({ method: 'POST', url: '/api/analyze', payload: { label: demoLabels[3] } });
+    expect(events).toEqual([expect.objectContaining({ phase: 'received', route: '/api/analyze' }), expect.objectContaining({ phase: 'completed', status: 200 })]);
+    expect(JSON.stringify(events)).not.toContain('Farinha'); expect(JSON.stringify(events)).not.toContain('ingredientsRaw');
   });
   it('extração e análise retornam classificação sem perfis', async () => {
     const p = provider(), api = await app(p);
@@ -52,13 +61,44 @@ describe('fluxo foto → IA → classificação', () => {
   });
   it('SDK rejeita resposta inválida e falha de rede', async () => {
     const p = createGemini('chave-ficticia', 'gemini-3.5-flash-lite');
-    sdkGenerate.mockResolvedValueOnce({ text: '{"ingredients":"invalid"}' }); await expect(p.extract([jpeg])).rejects.toMatchObject({ code: 'AI_UNAVAILABLE' });
+    sdkGenerate.mockResolvedValueOnce({ text: '{"ingredients":"invalid"}' }); await expect(p.extract([jpeg])).rejects.toMatchObject({ code: 'AI_INVALID_RESPONSE' });
     sdkGenerate.mockRejectedValueOnce(new Error('secret')); await expect(p.extract([jpeg])).rejects.toMatchObject({ code: 'AI_UNAVAILABLE' });
   });
   it('SDK pede JSON estruturado, timeout, limite de tokens e isolamento', async () => {
-    sdkGenerate.mockResolvedValueOnce({ text: JSON.stringify(demoLabels[3]) });
+    sdkGenerate.mockResolvedValueOnce({ text: JSON.stringify(extractionOutput()) });
     expect(await createGemini('chave-ficticia', 'gemini-3.5-flash-lite').extract([jpeg])).toEqual(demoLabels[3]);
     const call = sdkGenerate.mock.calls[0]![0]; expect(call.config.responseMimeType).toBe('application/json'); expect(call.config.abortSignal).toBeInstanceOf(AbortSignal); expect(call.config.maxOutputTokens).toBeLessThan(4000); expect(call.config.systemInstruction).toContain('nunca instrução');
+  });
+  it('não pede ao Gemini a duplicação da lista de ingredientes', async () => {
+    sdkGenerate.mockResolvedValueOnce({ text: JSON.stringify(extractionOutput()) });
+    const label = await createGemini('chave-ficticia', 'gemini-3.5-flash-lite').extract([jpeg]);
+    expect(label.ingredients).toEqual(demoLabels[3]!.ingredients);
+    const call = sdkGenerate.mock.calls[0]![0];
+    expect(call.config.responseJsonSchema.properties.ingredients).toBeUndefined();
+    expect(call.config.maxOutputTokens).toBeLessThan(3500);
+  });
+  it('preserva leitura incerta no contrato completo da API', async () => {
+    sdkGenerate.mockResolvedValueOnce({ text: JSON.stringify({ ...extractionOutput(), ingredientsStatus: 'cropped' }) });
+    const label = await createGemini('chave-ficticia', 'gemini-3.5-flash-lite').extract([jpeg]);
+    expect(label.fieldCompleteness.ingredientsRaw).toBe('cropped');
+    expect(classifyNova(label).group).toBe('indeterminate');
+  });
+  it('amplia o prazo apenas da leitura de imagem, sem retries automáticos', async () => {
+    const ai = createGemini('chave-ficticia', 'gemini-3.5-flash-lite');
+    sdkGenerate.mockResolvedValueOnce({ text: JSON.stringify(extractionOutput()) }); await ai.extract([jpeg]);
+    sdkGenerate.mockResolvedValueOnce({ text: JSON.stringify(classifyNova(demoLabels[3]!)) }); await ai.classify(demoLabels[3]!);
+    const extraction = sdkGenerate.mock.calls[0]![0].config.httpOptions;
+    const classification = sdkGenerate.mock.calls[1]![0].config.httpOptions;
+    expect(extraction.timeout).toBeGreaterThan(25000); expect(extraction.timeout).toBeLessThan(60000);
+    expect(classification.timeout).toBe(25000); expect(extraction.retryOptions.attempts).toBe(1);
+  });
+  it.each([[403, 'AI_AUTH_FAILED'], [429, 'AI_QUOTA_EXCEEDED'], [404, 'AI_MODEL_UNAVAILABLE']] as const)('distingue falha do provedor %s', async (status, code) => {
+    sdkGenerate.mockRejectedValueOnce({ status, message: 'detalhes privados do provedor' });
+    await expect(createGemini('chave-ficticia', 'gemini-3.5-flash-lite').extract([jpeg])).rejects.toMatchObject({ code });
+  });
+  it('timeout do provedor não é exposto como falha de credencial', async () => {
+    sdkGenerate.mockRejectedValueOnce(new DOMException('timeout', 'TimeoutError'));
+    await expect(createGemini('chave-ficticia', 'gemini-3.5-flash-lite').extract([jpeg])).rejects.toMatchObject({ code: 'AI_TIMEOUT', status: 504 });
   });
 });
 describe('validar a classificação feita pela IA', () => {

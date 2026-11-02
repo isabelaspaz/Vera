@@ -1,47 +1,87 @@
-import { useState, type ReactNode } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { useState, type ComponentProps, type ReactNode } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
 import { theme as t } from '../theme/tokens';
-export function Body({ children, muted = false }: { children: ReactNode; muted?: boolean }) { return <Text style={[s.body, muted && s.muted]}>{children}</Text>; }
-export function Heading({ children }: { children: ReactNode }) { return <Text accessibilityRole="header" style={s.heading}>{children}</Text>; }
+
+export type IconName = ComponentProps<typeof Feather>['name'];
+export type PastelTone = 'white' | 'pale' | 'lavender' | 'butter' | 'peach' | 'warningBg';
+export function Icon({ name, size = 22, color = t.colors.ink }: { name: IconName; size?: number; color?: string }) {
+  return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none"><Feather name={name} size={size} color={color} /></View>;
+}
+export function Body({ children, muted = false }: { children: ReactNode; muted?: boolean }) {
+  return <Text style={[s.body, muted && s.muted]}>{children}</Text>;
+}
+export function Heading({ children }: { children: ReactNode }) {
+  return <Text accessibilityRole="header" style={s.heading}>{children}</Text>;
+}
 export function Eyebrow({ children }: { children: ReactNode }) { return <Text style={s.eyebrow}>{children}</Text>; }
-export function Card({ children, tone = 'white' }: { children: ReactNode; tone?: 'white' | 'pale' | 'warningBg' }) { return <View style={[s.card, { backgroundColor: t.colors[tone] }]}>{children}</View>; }
-export function Button({ title, onPress, secondary = false, disabled = false, busy = false, hint }: { title: string; onPress: () => void; secondary?: boolean; disabled?: boolean; busy?: boolean; hint?: string }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityHint={hint} accessibilityState={{ disabled: disabled || busy, busy }} disabled={disabled || busy} onPress={onPress}
-    style={({ pressed }) => [s.button, secondary && s.secondary, pressed && { opacity: t.states.pressed }, (disabled || busy) && { opacity: t.states.disabled }]}>
-    {busy && <ActivityIndicator color={secondary ? t.colors.green : t.colors.white} />}<Text style={[s.buttonText, secondary && { color: t.colors.green }]}>{title}</Text>
+export function Card({ children, tone = 'white' }: { children: ReactNode; tone?: PastelTone }) {
+  return <View style={[s.card, { backgroundColor: t.colors[tone] }]}>{children}</View>;
+}
+export function Button({ title, onPress, variant = 'primary', disabled = false, busy = false, hint, icon }: {
+  title: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'ghost';
+  disabled?: boolean; busy?: boolean; hint?: string; icon?: IconName;
+}) {
+  const foreground = variant === 'primary' ? t.colors.white : t.colors.green;
+  const [focused, setFocused] = useState(false);
+  return <Pressable accessibilityRole="button" accessibilityLabel={title} accessibilityHint={hint}
+    accessibilityState={{ disabled: disabled || busy, busy }} disabled={disabled || busy} onPress={onPress}
+    onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+    style={({ pressed }) => [s.button, variant === 'secondary' && s.secondary, variant === 'ghost' && s.ghost,
+      focused && s.focus, pressed && { opacity: t.states.pressed }, (disabled || busy) && { opacity: t.states.disabled }]}>
+    {busy ? <ActivityIndicator color={foreground} /> : icon ? <Icon name={icon} color={foreground} /> : null}
+    <Text style={[s.buttonText, { color: foreground }]}>{title}</Text>
+    {variant === 'primary' && !busy && <Icon name="arrow-right" color={foreground} size={20} />}
   </Pressable>;
 }
-export function Field({ label, ...props }: TextInputProps & { label: string }) {
-  const [focus, setFocus] = useState(false);
-  return <View style={{ gap: 8 }}><Text style={s.label}>{label}</Text><TextInput {...props} accessibilityLabel={label} placeholderTextColor={t.colors.muted} onFocus={() => setFocus(true)} onBlur={() => setFocus(false)}
-    style={[s.input, props.multiline && { minHeight: 100, textAlignVertical: 'top' }, focus && { borderColor: t.colors.green, borderWidth: 2 }, props.style]} /></View>;
+export function ErrorNotice({ message }: { message: string }) {
+  return <View accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>
+    <Icon name="alert-circle" color={t.colors.error} /><Text style={s.errorText}>{message}</Text>
+  </View>;
 }
-export function ErrorNotice({ message }: { message: string }) { return <View accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}><Text style={{ color: t.colors.error, fontSize: 16 }}>{message}</Text></View>; }
-export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
-  return <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: selected }} accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [s.chip, selected && { backgroundColor: t.colors.green, borderColor: t.colors.green }, pressed && { opacity: 0.7 }]}><Text style={{ fontSize: 16, color: selected ? t.colors.white : t.colors.ink }}>{selected ? '✓  ' : '+  '}{label}</Text></Pressable>;
+export function Note({ children, icon = 'info' }: { children: ReactNode; icon?: IconName }) {
+  return <View style={s.note}><Icon name={icon} size={17} color={t.colors.muted} /><Text style={s.noteText}>{children}</Text></View>;
 }
-export function Screen({ children, title, mode, back = true }: { children: ReactNode; title?: string; mode?: string; back?: boolean }) {
-  return <SafeAreaView style={s.safe}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}>
-    <View style={s.top}>{back ? <Pressable accessibilityRole="button" accessibilityLabel="Voltar" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} style={s.back}><Text style={{ color: t.colors.green, fontSize: 24 }}>←</Text></Pressable> : <Text style={s.logo}>vera.</Text>}
-      <Text style={s.mode}>{mode === 'demo' ? 'DEMO · DADOS FICTÍCIOS' : 'MODO REAL'}</Text></View>
-    {title && <Heading>{title}</Heading>}{children}
-    <View style={{ height: 20 }} />
-  </ScrollView></KeyboardAvoidingView></SafeAreaView>;
+export function Screen({ children, title, back = true }: { children: ReactNode; title?: string; back?: boolean }) {
+  const [backFocused, setBackFocused] = useState(false);
+  return <SafeAreaView style={s.safe}><KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.page} showsVerticalScrollIndicator={false}>
+      <View style={s.top}>
+        {back ? <Pressable accessibilityRole="button" accessibilityLabel="Voltar" onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
+          onFocus={() => setBackFocused(true)} onBlur={() => setBackFocused(false)}
+          style={({ pressed }) => [s.back, backFocused && s.focus, pressed && { opacity: t.states.pressed }]}><Icon name="arrow-left" /></Pressable>
+          : <Text accessibilityLabel="Vera" style={s.logo}>vera<Text style={{ color: t.colors.green }}>.</Text></Text>}
+        {back && <Text accessibilityLabel="Vera" style={s.smallLogo}>vera.</Text>}
+        <View style={s.modePill}>
+          <Icon name="cpu" size={13} color={t.colors.green} />
+          <Text accessibilityLabel="Classificação com inteligência artificial" style={s.mode}>COM IA</Text>
+        </View>
+      </View>
+      {title && <Heading>{title}</Heading>}{children}
+    </ScrollView>
+  </KeyboardAvoidingView></SafeAreaView>;
 }
 export const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: t.colors.cream }, page: { padding: 24, paddingBottom: 36, gap: 20, width: '100%', maxWidth: 620, alignSelf: 'center', flexGrow: 1 },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' },
-  logo: { fontSize: 40, color: t.colors.green, fontWeight: '700', letterSpacing: -2 }, mode: { fontSize: 14, fontWeight: '700', letterSpacing: 1, color: t.colors.muted },
+  safe: { flex: 1, backgroundColor: t.colors.cream },
+  page: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 36, gap: 20, width: '100%', maxWidth: 560, alignSelf: 'center', flexGrow: 1 },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 4, flexWrap: 'wrap' },
+  logo: { fontSize: 44, color: t.colors.ink, fontWeight: '600', letterSpacing: -2.5 },
+  smallLogo: { fontSize: 28, color: t.colors.ink, fontWeight: '600', letterSpacing: -1.6 },
+  modePill: { backgroundColor: t.colors.pale, paddingVertical: 9, paddingHorizontal: 13, borderRadius: t.radius.pill, flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 36 },
+  mode: { fontSize: 12, fontWeight: '700', letterSpacing: 1.3, color: t.colors.ink },
   body: { fontSize: t.type.body, color: t.colors.ink, lineHeight: 26 }, muted: { color: t.colors.muted },
-  heading: { fontSize: t.type.heading, color: t.colors.ink, fontWeight: '600', letterSpacing: -0.7, lineHeight: 38 },
-  eyebrow: { fontSize: 13, fontWeight: '700', letterSpacing: 1.8, color: t.colors.green },
-  card: { padding: 24, borderRadius: t.radius.card, gap: 14, borderWidth: 1, borderColor: t.colors.line },
-  button: { minHeight: 58, padding: 16, paddingHorizontal: 22, backgroundColor: t.colors.green, borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 12 },
-  secondary: { backgroundColor: 'transparent', borderWidth: 1, borderColor: t.colors.green }, buttonText: { color: t.colors.white, fontSize: 17, fontWeight: '600', textAlign: 'center' },
-  label: { fontSize: 16, fontWeight: '600', color: t.colors.ink }, input: { borderWidth: 1, borderColor: t.colors.line, borderRadius: 14, backgroundColor: t.colors.white, padding: 15, fontSize: 17, color: t.colors.ink, minHeight: 54 },
-  error: { padding: 16, backgroundColor: '#F8EAE6', borderRadius: 14 }, chip: { minHeight: 48, borderWidth: 1, borderColor: t.colors.line, padding: 13, borderRadius: 24, backgroundColor: t.colors.white, justifyContent: 'center' },
-  back: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.pale, borderRadius: 24 },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, divider: { height: 1, backgroundColor: t.colors.line, marginVertical: 8 },
+  heading: { fontSize: t.type.heading, color: t.colors.ink, fontWeight: '500', letterSpacing: -1, lineHeight: 40 },
+  eyebrow: { fontSize: 12, lineHeight: 18, fontWeight: '600', letterSpacing: 1.6, color: t.colors.green },
+  card: { padding: 24, borderRadius: t.radius.card, gap: 14, ...t.shadow },
+  button: { minHeight: 60, paddingVertical: 17, paddingHorizontal: 22, backgroundColor: t.colors.green, borderRadius: t.radius.pill, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, borderWidth: 1, borderColor: 'transparent' },
+  secondary: { backgroundColor: t.colors.white, borderColor: t.colors.line }, ghost: { backgroundColor: 'transparent', paddingVertical: 12, minHeight: 48 },
+  buttonText: { fontSize: 16, lineHeight: 23, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
+  focus: { borderWidth: 2, borderColor: t.colors.ink },
+  error: { padding: 18, backgroundColor: '#F8EAE6', borderRadius: 20, gap: 12, flexDirection: 'row', alignItems: 'flex-start' },
+  errorText: { flex: 1, color: t.colors.error, fontSize: 16, lineHeight: 24 },
+  back: { width: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.white, borderRadius: 24, borderWidth: 1, borderColor: t.colors.line },
+  note: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingHorizontal: 6 },
+  noteText: { fontSize: 14, lineHeight: 21, color: t.colors.muted, flex: 1 },
 });

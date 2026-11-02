@@ -23,3 +23,11 @@ export type LabelExtraction = z.infer<typeof labelSchema>;
 export type NovaAssessment = z.infer<typeof novaSchema>;
 export type Analysis = z.infer<typeof analysisSchema>;
 export type LabelImage = z.infer<typeof imageSchema>;
+export const analysisPhaseSchema = z.enum(['reading', 'classifying']);
+export const analysisJobSchema = z.discriminatedUnion('status', [
+  z.object({ id: z.uuid(), status: z.literal('processing'), phase: analysisPhaseSchema }),
+  z.object({ id: z.uuid(), status: z.literal('completed'), analysis: analysisSchema }),
+  z.object({ id: z.uuid(), status: z.literal('failed'), error: z.object({ code: z.string(), message: z.string() }) }),
+]);
+export type AnalysisJob = z.infer<typeof analysisJobSchema>;
+export type AnalysisPhase = z.infer<typeof analysisPhaseSchema>;
