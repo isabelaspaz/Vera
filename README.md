@@ -2,9 +2,21 @@
 
 **Entenda o que você come.** Aplicativo mobile que usa Gemini para classificar o processamento de um alimento e explicar o motivo em uma frase.
 
-Fluxo: **foto do rótulo → classificação → explicação curta**. A leitura dos ingredientes acontece internamente. O aplicativo não tem modo demo, dados fictícios, cadastro, perfis, chat ou tela de revisão.
+Fluxo: **foto do rótulo → tela de análise → tela de resultado com classificação e explicação curta**. A leitura dos ingredientes acontece internamente. O aplicativo não tem modo demo, dados fictícios, cadastro, perfis, chat ou tela de revisão.
 
 Resultados: in natura/minimamente processado (NOVA 1), ingrediente culinário processado (NOVA 2), processado (NOVA 3), ultraprocessado (NOVA 4) ou informação insuficiente. Não há fallback para uma classificação simulada.
+
+A interface usa fundo creme e cores suaves no resultado, sempre acompanhadas do nome da classificação:
+
+| Resultado | Cor |
+| --- | --- |
+| In natura ou minimamente processado | Verde sálvia |
+| Ingrediente culinário | Amarelo manteiga |
+| Processado | Coral claro |
+| Ultraprocessado | Vermelho rosado |
+| Informação insuficiente | Cinza neutro |
+
+O grupo 2 aparece como **Ingrediente culinário**, com a explicação: “Usado para cozinhar ou temperar, como óleo, sal e açúcar.”
 
 ## Configurar a IA
 
@@ -48,9 +60,11 @@ npx.cmd expo start --tunnel --port 8082
 
 O aplicativo detecta o endereço do Expo e usa `/vera-api`, um proxy de desenvolvimento para a API local na porta 3333. Isso permite acessar app e API pelo mesmo túnel HTTPS, inclusive no iPhone usando rede móvel. Não é necessário definir `EXPO_PUBLIC_API_URL` no Expo Go. Se houver uma URL antiga em `apps/mobile/.env`, remova-a ou deixe-a vazia para usar esse caminho automático.
 
-Se alterar a porta da API, configure `VERA_API_PORT` no ambiente do Expo e reinicie o Metro. O proxy encaminha somente health, catálogo NOVA, extração e análise. A configuração fica em `apps/mobile/metro.config.js`.
+Se alterar a porta da API, configure `VERA_API_PORT` no ambiente do Expo e reinicie o Metro. O proxy encaminha somente health, catálogo NOVA, extração, análise e consultas de progresso. A configuração fica em `apps/mobile/metro.config.js`.
 
-No app, escolha **Fotografar rótulo** ou **Escolher da galeria**. A foto só é enviada ao confirmar **Classificar alimento**. Se faltar chave, cota, acesso ao modelo ou conexão, o app exibe o erro. Reinicie a API após alterar `apps/api/.env`.
+No app, escolha **Fotografar rótulo** ou **Escolher da galeria**. A foto só é enviada ao confirmar **Classificar alimento**. Uma tela própria acompanha a leitura e a classificação, com a mensagem **Mantenha o aplicativo aberto**; ao terminar, abre a tela de resultado. Se faltar chave, cota, acesso ao modelo ou conexão, o app exibe o erro. Reinicie a API após alterar `apps/api/.env`.
+
+A análise é assíncrona: o servidor responde com um identificador e o app consulta o progresso em chamadas curtas, sem reenviar a imagem. Isso evita manter o túnel aberto durante toda a espera pela IA. Se o Expo mostrar **502 Bad Gateway**, confira os dois processos, tente novamente e use o QR code da sessão atual; reiniciar o túnel gera um novo endereço.
 
 ## Verificar
 
@@ -59,7 +73,7 @@ npm.cmd run check
 npm.cmd exec tsx scripts/smoke.ts
 ```
 
-TypeScript strict e **85 testes** em seis arquivos: NOVA, leitura interna, contratos de API/SDK, falhas do provedor, conexão pelo proxy, transporte XMLHttpRequest do iPhone e 38 combinações de contraste. As fixtures existem apenas em `tests/fixtures` e não são exportadas para o aplicativo.
+TypeScript strict e **85 testes** em seis arquivos: NOVA, leitura interna, contratos de API/SDK, falhas do provedor, conexão pelo proxy, transporte XMLHttpRequest do iPhone, progresso/expiração/concorrência de análises e 38 combinações de contraste. As fixtures existem apenas em `tests/fixtures` e não são exportadas para o aplicativo.
 
 Com a chave configurada, é possível fazer uma chamada real de classificação de texto para verificar a conexão:
 
@@ -82,7 +96,7 @@ Para um APK/IPA distribuído, configure `EXPO_PUBLIC_API_URL` com a URL HTTPS do
 
 Exporte os bundles com `npx.cmd expo export --platform android --platform ios` em `apps/mobile`. Para Android local, use Android SDK e `npx.cmd expo run:android`; para iOS local, macOS/Xcode e `npx expo run:ios`.
 
-Ainda faltam avaliação com imagens reais, revisão científica e testes físicos completos/acessibilidade. A API não armazena fotos nem registra seu conteúdo, mas o provedor tem [termos próprios](https://ai.google.dev/gemini-api/terms). A última auditoria online apontava 11 avisos moderados na cadeia de ferramentas Expo.
+O fluxo e a abertura do resultado em tela separada foram confirmados pela usuária no iPhone. Ainda faltam avaliação sistemática com imagens reais, revisão científica e testes completos de acessibilidade. A API não grava fotos em disco nem registra seu conteúdo; os resultados ficam temporariamente em memória por até dez minutos e desaparecem ao reiniciar o servidor. O provedor tem [termos próprios](https://ai.google.dev/gemini-api/terms). A última auditoria online apontava 11 avisos moderados na cadeia de ferramentas Expo.
 
 Se npm 10 falhar com `edgesOut`, use `npx.cmd --yes npm@11 ci`.
 
