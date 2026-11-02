@@ -1,20 +1,29 @@
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { Body, Button, Eyebrow, Screen } from '../src/components/ui';
+import { Button, Note, Screen } from '../src/components/ui';
 import { useStore } from '../src/hooks/store';
 import { theme as t } from '../src/theme/tokens';
+
 export default function Home() {
   const store = useStore();
-  return <Screen mode={store.mode} back={false}>
-    <View style={{ paddingVertical: 24, gap: 24 }}>
-      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ backgroundColor: t.colors.pale, borderRadius: 36, width: 78, height: 78, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: t.colors.green, fontSize: 52 }}>◎</Text></View>
-      <Eyebrow>ENTENDA O QUE VOCÊ COME.</Eyebrow>
-      <Text accessibilityRole="header" style={{ fontSize: 38, lineHeight: 46, fontWeight: '600', letterSpacing: -1.3, color: t.colors.ink }}>Que tipo de{ '\n' }alimento é esse?</Text>
-      <Body muted>Fotografe os ingredientes. A Vera identifica o grau de processamento e explica o porquê.</Body>
+  function open(source: 'camera' | 'gallery') { store.reset(); router.push({ pathname: '/scanner', params: { source } }); }
+  return <Screen back={false}>
+    <View style={styles.content}>
+      <View style={styles.intro}>
+        <Text accessibilityRole="header" style={styles.headline}>Entenda o que{ '\n' }você come.</Text>
+      </View>
+
+      <View style={styles.actions}>
+        <Button title="Fotografar rótulo" icon="camera" onPress={() => open('camera')} />
+        <Button title="Escolher da galeria" variant="secondary" icon="image" onPress={() => open('gallery')} />
+      </View>
     </View>
-    <Button title={store.mode === 'demo' ? 'Experimentar um exemplo' : 'Fotografar rótulo'} onPress={() => { store.reset(); router.push({ pathname: '/scanner', params: { source: 'camera' } }); }} />
-    {store.mode === 'real' && <Button title="Escolher foto" secondary onPress={() => { store.reset(); router.push({ pathname: '/scanner', params: { source: 'gallery' } }); }} />}
-    <Body muted>{store.mode === 'demo' ? 'Demonstração com alimentos fictícios.' : 'A foto será enviada ao Google Gemini para classificação.'}</Body>
-    <Button title={store.mode === 'demo' ? 'Usar IA com uma foto real' : 'Ver exemplos de demonstração'} secondary onPress={() => store.setMode(store.mode === 'demo' ? 'real' : 'demo')} />
+    <Note icon="shield">A foto só é enviada ao Google Gemini quando você confirma a classificação.</Note>
   </Screen>;
 }
+const styles = StyleSheet.create({
+  content: { flexGrow: 1, justifyContent: 'center', paddingTop: 32, paddingBottom: 44, gap: 36 },
+  intro: { paddingHorizontal: 4 },
+  headline: { fontSize: 38, lineHeight: 48, fontWeight: '500', letterSpacing: -1.4, color: t.colors.ink },
+  actions: { gap: 12 },
+});

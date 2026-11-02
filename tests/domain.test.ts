@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeLabel, classifyNova, demoLabels, fixture, labelSchema } from '@vera/shared';
+import { analyzeLabel, classifyNova, labelSchema } from '@vera/shared';
+import { sampleLabels as demoLabels, fixture } from './fixtures/labels';
 
-describe('classificação NOVA no modo demo', () => {
-  it.each(['1', '2', '3', '4', 'indeterminate'] as const)('demonstra grupo %s', group => {
+describe('regras de classificação NOVA', () => {
+  it.each(['1', '2', '3', '4', 'indeterminate'] as const)('reconhece grupo %s', group => {
     const label = demoLabels[['1', '2', '3', '4', 'indeterminate'].indexOf(group)]!;
     expect(analyzeLabel(label).novaAssessment.group).toBe(group);
   });

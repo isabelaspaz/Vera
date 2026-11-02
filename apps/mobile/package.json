@@ -9,6 +9,7 @@
     "ios": "expo start --ios"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
     "@vera/shared": "0.1.0",
     "expo": "~58.0.22",
     "expo-constants": "~58.0.0",

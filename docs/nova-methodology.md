@@ -12,7 +12,7 @@ A referência principal é o [Guia Alimentar para a População Brasileira, 2ª 
 
 O Gemini considera identidade, formulação, função de ingredientes e informações disponíveis de processamento. Não deve decidir pela contagem de ingredientes nem considerar qualquer aditivo como marcador de ultraprocessamento. A resposta tem schema, explicação curta e trechos literais.
 
-Regras locais reconhecem um vocabulário pequeno de ingredientes básicos, ingredientes culinários, formulações simples e marcadores de formulação. Servem ao demo e à identificação de divergências com a IA. No modo real, formulações novas podem receber uma estimativa do Gemini; o backend exige ingredientes legíveis e evidências presentes no texto. Não força um grupo quando o modelo se abstém.
+Regras locais reconhecem um vocabulário pequeno de ingredientes básicos, ingredientes culinários, formulações simples e marcadores de formulação. Servem à identificação de divergências com a IA. Formulações novas podem receber uma estimativa do Gemini; o backend exige ingredientes legíveis e evidências presentes no texto. Não força um grupo quando o modelo se abstém. Os dados de exemplo ficam exclusivamente nos testes.
 
 A ligação literal entre evidência e rótulo não demonstra que a inferência NOVA está correta. A transcrição pode conter erro e o rótulo pode omitir o processamento. A estimativa exige avaliação futura com imagens reais e referência revisada por pessoas qualificadas.
 

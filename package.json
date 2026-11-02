@@ -13,7 +13,8 @@
     "api": "npm run dev -w @vera/api",
     "test": "vitest run",
     "typecheck": "tsc -p apps/api/tsconfig.json --noEmit && tsc -p apps/mobile/tsconfig.json --noEmit",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm test",
+    "check:ai": "tsx --env-file=apps/api/.env scripts/check-gemini.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
