@@ -1,0 +1,13 @@
+node_modules/
+.expo/
+dist/
+coverage/
+.env
+.env.local
+.env.*
+!.env.example
+*.tgz
+*.log
+apps/mobile/.env
+apps/api/.env
+.npm-cache/

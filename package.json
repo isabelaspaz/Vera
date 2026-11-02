@@ -1,0 +1,24 @@
+{
+  "name": "vera",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "overrides": { "react": "19.3.0", "react-native-safe-area-context": "~5.10.1" },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start -w @vera/mobile",
+    "api": "npm run dev -w @vera/api",
+    "test": "vitest run",
+    "typecheck": "tsc -p apps/api/tsconfig.json --noEmit && tsc -p apps/mobile/tsconfig.json --noEmit",
+    "check": "npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "~6.0.3",
+    "vitest": "4.1.12"
+  }
+}

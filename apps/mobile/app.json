@@ -1,0 +1,8 @@
+{
+  "expo": {
+    "name":"Vera", "slug":"vera", "scheme":"vera", "version":"0.1.0", "orientation":"default", "userInterfaceStyle":"light",
+    "ios":{"bundleIdentifier":"com.vera.assistente","supportsTablet":true},
+    "android":{"package":"com.vera.assistente","permissions":["CAMERA"]},
+    "plugins":["expo-router",["expo-image-picker",{"photosPermission":"A Vera usa a foto escolhida para ler o rótulo.","cameraPermission":"A Vera usa a câmera para fotografar rótulos.","microphonePermission":false}]]
+  }
+}
